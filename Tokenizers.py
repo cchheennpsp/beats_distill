@@ -160,4 +160,3 @@ class Tokenizers(nn.Module):
         quantize_feature, embed_loss, embed_ind = self.quantize(quantize_input)
 
         return embed_ind
-
