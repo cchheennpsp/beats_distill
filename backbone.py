@@ -1,12 +1,3 @@
-# --------------------------------------------------------
-# BEATs: Audio Pre-Training with Acoustic Tokenizers (https://arxiv.org/abs/2212.09058)
-# Github source: https://github.com/microsoft/unilm/tree/master/beats
-# Copyright (c) 2022 Microsoft
-# Licensed under The MIT License [see LICENSE for details]
-# Based on fairseq code bases
-# https://github.com/pytorch/fairseq
-# --------------------------------------------------------
-
 import math
 import numpy as np
 from typing import Dict, Optional, Tuple
@@ -125,6 +116,9 @@ class TransformerEncoder(nn.Module):
 
         layer_results = []
         z = None
+        if tgt_layer is not None:
+            layer_results.append((x, z))
+        r = None
         pos_bias = None
         for i, layer in enumerate(self.layers):
             if self.layer_wise_gradient_decay_ratio != 1.0:
@@ -132,11 +126,14 @@ class TransformerEncoder(nn.Module):
             dropout_probability = np.random.random()
             if not self.training or (dropout_probability > self.layerdrop):
                 x, z, pos_bias = layer(x, self_attn_padding_mask=padding_mask, need_weights=False, pos_bias=pos_bias)
-            # Always collect layer results for distillation
-            # x is in (T, B, C) format at this point
-            layer_results.append(x.clone())  # Clone to avoid issues with in-place operations
-            if tgt_layer is not None and i == tgt_layer:
+            if tgt_layer is not None:
+                layer_results.append((x, z))
+            if i == tgt_layer:
+                r = x
                 break
+
+        if r is not None:
+            x = r
 
         # T x B x C -> B x T x C
         x = x.transpose(0, 1)
